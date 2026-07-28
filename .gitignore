@@ -16,3 +16,9 @@ __pycache__/
 # SQLite database files
 *.db
 tasks.db
+
+# Environment variables
+.env
+.env.local
+!.env.example
+
