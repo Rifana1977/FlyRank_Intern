@@ -52,17 +52,23 @@ When the server starts up (`SQLiteTaskDatabase` instance in `app/database.py`):
 ```text
 FlyRank_Intern/
 ├── app/
-│   ├── __init__.py       # Package initializer
-│   ├── main.py          # FastAPI application & REST endpoint handlers
-│   ├── models.py        # Pydantic data schemas & payload validators
-│   └── database.py      # SQLite connection, startup initialization & CRUD operations
-├── docs/                 # Documentation assets and screenshots
-│   └── sqlite_screenshot.png  # Place your SQLite database GUI/CLI screenshot here
-├── tasks.db              # SQLite database file (auto-created on startup)
-├── .gitignore            # Git exclusion rules
-├── requirements.txt      # Python dependencies
-└── README.md            # Project documentation & API guide
+│   ├── __init__.py            # Package initializer
+│   ├── main.py               # FastAPI application & REST endpoint handlers
+│   ├── models.py             # Pydantic data schemas & payload validators
+│   ├── database.py           # Dependency injection & database singleton export
+│   └── postgres_repository.py# PostgreSQL repository implementation (Assignment 3)
+├── docs/                      # Documentation assets and screenshots
+│   └── sqlite_screenshot.png # Database screenshot location
+├── tasks.db                   # SQLite database file (Assignment 2)
+├── init.sql                   # Automatic PostgreSQL table initialization script
+├── docker-compose.yml         # Docker Compose configuration for PostgreSQL
+├── .env.example               # Environment variables template
+├── .env                       # Local environment variables (Gitignored)
+├── .gitignore                 # Git exclusion rules
+├── requirements.txt           # Python dependencies
+└── README.md                 # Project documentation & API guide
 ```
+
 
 ---
 
@@ -301,6 +307,109 @@ curl -X DELETE http://127.0.0.1:8000/tasks/1
 
 ---
 
+## 🐘 Week 3 & Assignment 3 — PostgreSQL + Docker Migration
+
+In Assignment 3, the application was upgraded from an in-memory/SQLite store to a containerized **PostgreSQL** database managed via **Docker Compose**.
+
+### 🏗️ Architecture & Repository Pattern
+```text
+Client
+  ↓
+Routes (app/main.py)
+  ↓
+Service / Data Schema (app/models.py)
+  ↓
+Repository Interface Contract (app/database.py)
+  ↓
+Postgres Repository (app/postgres_repository.py)
+  ↓
+PostgreSQL Docker Container (task_postgres_db)
+```
+
+#### Key Architecture Principles:
+- **Repository Pattern**: Swapped the data store implementation from SQLite (`SQLiteTaskDatabase`) to PostgreSQL (`PostgresTaskRepository`) in `app/database.py`.
+- **Zero Route Modification**: Route handlers in `app/main.py` and schemas in `app/models.py` remained 100% unchanged.
+- **Dependency Inversion Principle (DIP)**: API routes depend on repository interface abstractions rather than concrete database drivers.
+
+---
+
+### 🗄️ Why PostgreSQL?
+- **Enterprise Reliability**: Full ACID compliance, robust multi-user concurrency control, and strong transaction safety.
+- **Containerization via Docker**: Isolated database server environment consistent across all operating systems.
+- **Persistence via Docker Volumes**: Named Docker volume `postgres_data` ensures zero data loss when containers are stopped or restarted.
+
+---
+
+### 🔑 Environment Variables
+Defined in `.env.example` (committed blueprint) and local `.env` (gitignored for security):
+
+```env
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=taskdb
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/taskdb
+```
+
+---
+
+### 🐳 Docker Setup & Automatic Initialization
+
+#### 1. `docker-compose.yml`
+```yaml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: task_postgres_db
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-taskdb}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  postgres_data:
+    driver: local
+```
+
+#### 2. Automatic Schema Creation (`init.sql`)
+Mounted to `/docker-entrypoint-initdb.d/init.sql` so PostgreSQL creates the table on container startup:
+```sql
+CREATE TABLE IF NOT EXISTS tasks (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    done BOOLEAN DEFAULT FALSE
+);
+```
+
+---
+
+### 🧪 Data Persistence Verification Procedure
+
+1. **Start PostgreSQL Container**:
+   `docker compose up -d`
+2. **Create Task (`POST /tasks`)**:
+   `Invoke-RestMethod -Uri "http://localhost:8000/tasks" -Method Post -ContentType "application/json" -Body '{"title": "Verify Docker Volume Persistence"}'`
+3. **Verify Task Listed (`GET /tasks`)**:
+   `Invoke-RestMethod -Uri "http://localhost:8000/tasks" -Method Get`
+4. **Stop Container (`docker compose down`)**:
+   Container `task_postgres_db` is stopped and removed; `postgres_data` volume is preserved.
+5. **Restart Container (`docker compose up -d`)**:
+   Container starts and re-attaches `postgres_data` volume.
+6. **Verify Data Preserved (`GET /tasks`)**:
+   The task still exists in the PostgreSQL database.
+
+---
+
 ## 📄 License
 
 Distributed under the MIT License. Built for FlyRank Backend Track.
+
