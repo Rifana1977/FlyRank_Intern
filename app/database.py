@@ -126,5 +126,7 @@ class SQLiteTaskDatabase:
 
 
 # Singleton database instance shared across the application
-db = SQLiteTaskDatabase()
+from app.postgres_repository import PostgresTaskRepository
+
+db = PostgresTaskRepository()
 
