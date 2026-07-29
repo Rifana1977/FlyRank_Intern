@@ -5,12 +5,16 @@ from fastapi.exceptions import RequestValidationError
 
 from app.models import Task, TaskCreate, TaskUpdate
 from app.database import db
+from app.routers import auth as auth_router
 
 app = FastAPI(
     title="Task Management API",
     description="A simple in-memory Task Management REST API built with FastAPI for FlyRank Week 2",
     version="1.0"
 )
+
+# Register routers
+app.include_router(auth_router.router)
 
 
 @app.exception_handler(RequestValidationError)
