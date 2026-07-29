@@ -6,6 +6,8 @@ from fastapi.exceptions import RequestValidationError
 from app.models import Task, TaskCreate, TaskUpdate
 from app.database import db
 from app.routers import auth as auth_router
+from app.routers import public as public_router
+from app.routers import protected as protected_router
 
 app = FastAPI(
     title="Task Management API",
@@ -15,6 +17,8 @@ app = FastAPI(
 
 # Register routers
 app.include_router(auth_router.router)
+app.include_router(public_router.router)
+app.include_router(protected_router.router)
 
 
 @app.exception_handler(RequestValidationError)
