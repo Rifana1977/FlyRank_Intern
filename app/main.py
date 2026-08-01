@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 
 from app.models import Task, TaskCreate, TaskUpdate
 from app.database import db
+from app.dependencies import AuthException
 from app.routers import auth as auth_router
 from app.routers import public as public_router
 from app.routers import protected as protected_router
@@ -21,7 +22,20 @@ app.include_router(public_router.router)
 app.include_router(protected_router.router)
 
 
+@app.exception_handler(AuthException)
+async def auth_exception_handler(request: Request, exc: AuthException) -> JSONResponse:
+    """
+    Custom exception handler for auth failures.
+    Returns HTTP status code with {"error": "..."} payload.
+    """
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.error_message}
+    )
+
+
 @app.exception_handler(RequestValidationError)
+
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """
     Custom exception handler to catch validation errors and return HTTP 400 with requirement-matching error JSON.
