@@ -1,49 +1,37 @@
-# Task Management REST API (FastAPI + SQLite)
+# Task Management REST API with Supabase Authentication
 
-A clean, production-ready, beginner-friendly Task Management REST API built with **Python 3.10+**, **FastAPI**, and **SQLite** persistent database storage. Designed for the **FlyRank Backend Track (Week 2 & Assignment 2)**.
-
----
-
-## 🚀 Features
-
-- **FastAPI Framework**: Blazing-fast performance, automatic request validation, and OpenAPI schema generation.
-- **SQLite Database Integration**: Persistent data storage using Python's native `sqlite3` library in `tasks.db`.
-- **Automatic Database Initialization**: Database file, `tasks` table schema, and initial sample tasks are automatically created on server startup if missing.
-- **RESTful API Principles**: Strict compliance with standard HTTP verbs (`GET`, `POST`, `PUT`, `DELETE`) and standard status codes (`200`, `201`, `204`, `400`, `404`).
-- **Interactive OpenAPI Documentation**: Built-in Swagger UI available at `/docs`.
-- **Input Validation**: Strict request payload validation using Pydantic models (empty or whitespace-only titles are rejected with `400 Bad Request`).
-- **Type Hinting**: Clean, fully typed Python code throughout models, database access, and endpoint handlers.
+A production-ready, modular REST API built with **Python 3.10+**, **FastAPI**, **PostgreSQL / SQLite**, and **Supabase Auth**. Designed for the **FlyRank Backend Track (Week 4 Assignment — Authentication & Security)**.
 
 ---
 
-## 🗄️ Database Architecture & SQLite Integration
+## 🚀 Project Overview
 
-### Why SQLite Was Chosen
-- **Serverless & Zero-Configuration**: SQLite operates directly on disk without requiring complex database server setup, background daemons, or authentication configuration.
-- **Native Python Standard Library**: Python includes built-in support for SQLite via the standard `sqlite3` module, avoiding external dependency conflicts.
-- **ACID Compliance & Persistence**: Provides lightweight yet reliable ACID transaction support, guaranteeing data persistence across server restarts.
+This application extends the Task Management API with a secure authentication system powered by **Supabase Auth**. It implements JWT-based authentication, modular routers, a reusable authentication dependency, protected routes, interactive Swagger UI authorization, and repository-pattern database integration.
 
-### Where `tasks.db` is Stored
-The SQLite database file `tasks.db` is stored at the root of the workspace:
-```text
-FlyRank_Intern/tasks.db
-```
+### Core Features
 
-### How the Database is Automatically Created
-When the server starts up (`SQLiteTaskDatabase` instance in `app/database.py`):
-1. **File Creation**: Connects to `tasks.db`. SQLite creates the database file automatically if missing.
-2. **Table Schema Creation**: Executes the table creation query:
-   ```sql
-   CREATE TABLE IF NOT EXISTS tasks (
-       id INTEGER PRIMARY KEY AUTOINCREMENT,
-       title TEXT NOT NULL,
-       done INTEGER NOT NULL
-   );
-   ```
-3. **Sample Tasks Seeding**: Checks current row count via `SELECT COUNT(*) FROM tasks;`. If the table is empty (`count == 0`), it automatically inserts exactly three sample tasks:
-   - `("Buy groceries", 0)`
-   - `("Complete Assignment 2", 0)`
-   - `("Read SQLite documentation", 0)`
+- **FastAPI Framework**: High performance, automatic payload validation via Pydantic v2, and OpenAPI schema generation.
+- **Supabase Authentication**:
+  - `POST /auth/signup`: User registration using Supabase Auth SDK.
+  - `POST /auth/login`: User authentication returning JWT `access_token` and `refresh_token`.
+  - `POST /auth/logout`: Protected user sign-out endpoint returning `204 No Content`.
+- **Reusable Authentication Dependency**: `get_current_user` dependency in `app/dependencies.py` extracts Bearer tokens, verifies JWT signatures and expiry via Supabase, and injects the user into protected endpoints.
+- **Public & Protected Endpoint Scoping**:
+  - Public: `GET /`, `GET /health`, `GET /public/info`, `GET /tasks`, `GET /tasks/{id}`.
+  - Protected: `GET /protected/profile`, `GET /protected/dashboard`, `POST /auth/logout`, `POST /tasks`, `PUT /tasks/{id}`, `DELETE /tasks/{id}`.
+- **Swagger UI Integration (`/docs`)**: Configured with `HTTPBearer` security scheme — displays lock icons 🔒 on protected routes and provides an interactive **Authorize** modal for testing Bearer tokens.
+- **Database Repository Pattern**: Decoupled database architecture supporting both PostgreSQL (`psycopg2`) and SQLite.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Language**: Python 3.10+
+- **Framework**: FastAPI
+- **Auth Provider**: Supabase Auth (`@supabase/supabase-js` / `supabase` Python SDK)
+- **Database**: PostgreSQL (Docker container) / SQLite (`tasks.db`)
+- **Environment Management**: `python-dotenv`
+- **Documentation**: Swagger UI / OpenAPI 3.0 (`/docs`)
 
 ---
 
@@ -52,296 +40,43 @@ When the server starts up (`SQLiteTaskDatabase` instance in `app/database.py`):
 ```text
 FlyRank_Intern/
 ├── app/
-│   ├── __init__.py            # Package initializer
-│   ├── main.py               # FastAPI application & REST endpoint handlers
-│   ├── models.py             # Pydantic data schemas & payload validators
-│   ├── database.py           # Dependency injection & database singleton export
-│   └── postgres_repository.py# PostgreSQL repository implementation (Assignment 3)
-├── docs/                      # Documentation assets and screenshots
-│   └── sqlite_screenshot.png # Database screenshot location
-├── tasks.db                   # SQLite database file (Assignment 2)
-├── init.sql                   # Automatic PostgreSQL table initialization script
-├── docker-compose.yml         # Docker Compose configuration for PostgreSQL
-├── .env.example               # Environment variables template
-├── .env                       # Local environment variables (Gitignored)
-├── .gitignore                 # Git exclusion rules
-├── requirements.txt           # Python dependencies
-└── README.md                 # Project documentation & API guide
-```
-
-
----
-
-## 🛠️ Installation & Setup
-
-### 1. Prerequisites
-- Python **3.10+** installed on your system.
-
-### 2. Clone Repository & Setup Virtual Environment
-```bash
-# Clone repository
-git clone https://github.com/YOUR_USERNAME/FlyRank_Intern.git
-cd FlyRank_Intern
-
-# Create a virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On Windows (PowerShell):
-.\venv\Scripts\Activate.ps1
-# On Linux/macOS:
-source venv/bin/activate
-```
-
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
+│   ├── __init__.py            # App package marker
+│   ├── main.py                # FastAPI entry point & exception handlers
+│   ├── models.py              # Pydantic schemas for Tasks
+│   ├── auth_schemas.py        # Pydantic schemas for Auth (Signup, Login, User, Tokens)
+│   ├── database.py            # SQLite database implementation & singleton export
+│   ├── postgres_repository.py # PostgreSQL repository implementation
+│   ├── supabase_client.py     # Singleton Supabase client initialized from environment
+│   ├── dependencies.py        # Reusable get_current_user auth dependency & HTTPBearer scheme
+│   └── routers/
+│       ├── __init__.py        # Routers package marker
+│       ├── auth.py            # Auth endpoints (/auth/signup, /auth/login, /auth/logout)
+│       ├── public.py          # Public endpoints (/public/info)
+│       └── protected.py       # Protected endpoints (/protected/profile, /protected/dashboard)
+├── docs/                      # Screenshots & documentation assets
+├── docker-compose.yml         # PostgreSQL Docker container configuration
+├── init.sql                   # PostgreSQL initial database table schema
+├── tasks.db                   # SQLite local database file (gitignored)
+├── .env                       # Environment variables secret file (gitignored)
+├── .env.example               # Environment variables public template
+├── requirements.txt           # Python project dependencies
+└── README.md                  # Complete project documentation
 ```
 
 ---
 
-## ▶️ How to Run the Server
+## 🔑 Environment Variables & Security
 
-Start the development server using Uvicorn:
-```bash
-uvicorn app.main:app --reload
-```
-The server will start at **`http://127.0.0.1:8000`**. On startup, `tasks.db` is initialized automatically.
+### Why `.env` MUST NEVER be Committed to Version Control
 
----
+The `.env` file contains sensitive production credentials, API secrets, database passwords, and Supabase service keys (`SUPABASE_ANON_KEY`, `DATABASE_URL`). 
 
-## 📚 API Endpoints & Reference
+- **Security Risk**: Committing `.env` publicly allows unauthorized third parties to compromise your Supabase auth instance, modify your database, or steal user data.
+- **Git Enforcement**: `.env` is explicitly listed in [.gitignore](file:///.gitignore). Only [.env.example](file:///.env.example) (containing safe placeholder names) is committed to git.
 
-Interactive Swagger UI documentation is live at **`http://127.0.0.1:8000/docs`**.
+### Environment Schema
 
-| Method | Endpoint | Description | SQL Query Executed | Status Code | Error Status |
-|---|---|---|---|---|---|
-| `GET` | `/` | API Metadata & Endpoint list | N/A | `200 OK` | N/A |
-| `GET` | `/health` | Health Check | N/A | `200 OK` | N/A |
-| `GET` | `/tasks` | List all tasks | `SELECT * FROM tasks;` | `200 OK` | N/A |
-| `GET` | `/tasks/{id}` | Get task by ID | `SELECT * FROM tasks WHERE id = ?;` | `200 OK` | `404 Not Found` |
-| `POST` | `/tasks` | Create a new task | `INSERT INTO tasks (title, done) VALUES (?, ?);` | `201 Created` | `400 Bad Request` |
-| `PUT` | `/tasks/{id}` | Update task title/status | `UPDATE tasks SET title = ?, done = ? WHERE id = ?;` | `200 OK` | `400 Bad Request` / `404 Not Found` |
-| `DELETE` | `/tasks/{id}` | Delete task by ID | `DELETE FROM tasks WHERE id = ?;` | `204 No Content` | `404 Not Found` |
-
----
-
-### Request & Response Examples
-
-#### 1. Root Endpoint (`GET /`)
-- **Response `200 OK`**:
-```json
-{
-  "name": "Task API",
-  "version": "1.0",
-  "endpoints": ["/tasks"]
-}
-```
-
-#### 2. Health Check (`GET /health`)
-- **Response `200 OK`**:
-```json
-{
-  "status": "ok"
-}
-```
-
-#### 3. List All Tasks (`GET /tasks`)
-- **Response `200 OK`**:
-```json
-[
-  {
-    "id": 1,
-    "title": "Buy groceries",
-    "done": false
-  },
-  {
-    "id": 2,
-    "title": "Complete Assignment 2",
-    "done": false
-  },
-  {
-    "id": 3,
-    "title": "Read SQLite documentation",
-    "done": false
-  }
-]
-```
-
-#### 4. Create Task (`POST /tasks`)
-- **Request Body**:
-```json
-{
-  "title": "Buy milk"
-}
-```
-- **Response `201 Created`**:
-```json
-{
-  "id": 4,
-  "title": "Buy milk",
-  "done": false
-}
-```
-- **Invalid Payload (Missing/Empty Title) -> `400 Bad Request`**:
-```json
-{
-  "error": "Title cannot be empty"
-}
-```
-
-#### 5. Get Task by ID (`GET /tasks/1`)
-- **Response `200 OK`**:
-```json
-{
-  "id": 1,
-  "title": "Buy groceries",
-  "done": false
-}
-```
-- **Task Not Found -> `404 Not Found`**:
-```json
-{
-  "error": "Task not found"
-}
-```
-
-#### 6. Update Task (`PUT /tasks/1`)
-- **Request Body**:
-```json
-{
-  "title": "Buy organic groceries",
-  "done": true
-}
-```
-- **Response `200 OK`**:
-```json
-{
-  "id": 1,
-  "title": "Buy organic groceries",
-  "done": true
-}
-```
-- **Task Not Found -> `404 Not Found`**:
-```json
-{
-  "error": "Task not found"
-}
-```
-
-#### 7. Delete Task (`DELETE /tasks/1`)
-- **Response `204 No Content`** *(Empty body)*
-- **Task Not Found -> `404 Not Found`**:
-```json
-{
-  "error": "Task not found"
-}
-```
-
----
-
-## 💡 SQL Query Reference & Explanations
-
-Here are the key SQL queries used in the application and what each one does:
-
-1. **`SELECT * FROM tasks;`**
-   - *Description*: Retrieves all columns (`id`, `title`, `done`) for all rows in the `tasks` table. Used by `GET /tasks`.
-
-2. **`SELECT * FROM tasks WHERE done = 1;`**
-   - *Description*: Filters and returns all task rows where `done = 1` (completed tasks).
-
-3. **`SELECT COUNT(*) FROM tasks;`**
-   - *Description*: Counts the total number of rows in the `tasks` table. Used on startup to check if the database is empty before seeding sample tasks.
-
-4. **`UPDATE tasks SET done = 1;`**
-   - *Description*: Updates the `done` status column to `1` (completed) for all tasks in the table unconditionally.
-
-5. **`DELETE FROM tasks WHERE done = 1;`**
-   - *Description*: Removes all task rows from the table where `done = 1` (deleting all completed tasks).
-
-6. **`SELECT * FROM tasks WHERE done = 0;`**
-   - *Description*: Selects all pending/uncompleted tasks (`done = 0`).
-
----
-
-## 🖼️ Database Screenshot Location
-
-Place your SQLite database GUI/CLI screenshot (e.g. from DB Browser for SQLite or VS Code SQLite Viewer) at:
-```text
-docs/sqlite_screenshot.png
-```
-
-![SQLite Database Screenshot](docs/sqlite_screenshot.png)
-
----
-
-## 🧪 Testing with cURL / Postman / Swagger UI
-
-### Using Interactive Swagger UI
-Navigate to **`http://127.0.0.1:8000/docs`** in your browser to test endpoints interactively.
-
-### Example cURL Commands
-
-```bash
-# Create a task
-curl -X POST http://127.0.0.1:8000/tasks -H "Content-Type: application/json" -d "{\"title\": \"Buy milk\"}"
-
-# Fetch all tasks
-curl -X GET http://127.0.0.1:8000/tasks
-
-# Update a task
-curl -X PUT http://127.0.0.1:8000/tasks/1 -H "Content-Type: application/json" -d "{\"done\": true}"
-
-# Delete a task
-curl -X DELETE http://127.0.0.1:8000/tasks/1
-```
-
----
-
-## 💡 Architecture & Key Concepts Applied
-
-- **Separation of Concerns**: Endpoint handlers (`main.py`), Pydantic data schemas (`models.py`), and storage operations (`database.py`) are strictly decoupled.
-- **REST Principles**: Endpoints map to noun resources (`/tasks`), using proper HTTP verbs and standard HTTP status codes.
-- **Pydantic Validation**: Automatic parsing and custom field validators for string trimming and empty field checks.
-- **Type Safety**: Python type annotations on all parameters and returns ensure high code clarity and maintainability.
-
----
-
-## 🐘 Week 3 & Assignment 3 — PostgreSQL + Docker Migration
-
-In Assignment 3, the application was upgraded from an in-memory/SQLite store to a containerized **PostgreSQL** database managed via **Docker Compose**.
-
-### 🏗️ Architecture & Repository Pattern
-```text
-Client
-  ↓
-Routes (app/main.py)
-  ↓
-Service / Data Schema (app/models.py)
-  ↓
-Repository Interface Contract (app/database.py)
-  ↓
-Postgres Repository (app/postgres_repository.py)
-  ↓
-PostgreSQL Docker Container (task_postgres_db)
-```
-
-#### Key Architecture Principles:
-- **Repository Pattern**: Swapped the data store implementation from SQLite (`SQLiteTaskDatabase`) to PostgreSQL (`PostgresTaskRepository`) in `app/database.py`.
-- **Zero Route Modification**: Route handlers in `app/main.py` and schemas in `app/models.py` remained 100% unchanged.
-- **Dependency Inversion Principle (DIP)**: API routes depend on repository interface abstractions rather than concrete database drivers.
-
----
-
-### 🗄️ Why PostgreSQL?
-- **Enterprise Reliability**: Full ACID compliance, robust multi-user concurrency control, and strong transaction safety.
-- **Containerization via Docker**: Isolated database server environment consistent across all operating systems.
-- **Persistence via Docker Volumes**: Named Docker volume `postgres_data` ensures zero data loss when containers are stopped or restarted.
-
----
-
-### 🔑 Environment Variables
-Defined in `.env.example` (committed blueprint) and local `.env` (gitignored for security):
+Create a local `.env` file at the project root using `.env.example` as a template:
 
 ```env
 POSTGRES_USER=postgres
@@ -350,66 +85,124 @@ POSTGRES_DB=taskdb
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/taskdb
+
+# Supabase Credentials
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key_here
 ```
 
 ---
 
-### 🐳 Docker Setup & Automatic Initialization
+## ⚡ Supabase Setup Guide
 
-#### 1. `docker-compose.yml`
-```yaml
-version: '3.8'
+1. **Create a Supabase Project**:
+   - Navigate to [supabase.com](https://supabase.com) and create a new project.
+2. **Disable Email Confirmation for Development**:
+   - Go to **Authentication** → **Providers** → **Email**.
+   - Turn **Confirm Email** to **OFF** so users can sign up and immediately sign in without email verification delays.
+3. **Copy API Keys**:
+   - Go to **Project Settings** → **API**.
+   - Copy **Project URL** (e.g. `https://xxxx.supabase.co`) into `SUPABASE_URL`.
+   - Copy **anon / public key** into `SUPABASE_ANON_KEY`.
 
-services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: task_postgres_db
-    restart: unless-stopped
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-taskdb}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+---
 
-volumes:
-  postgres_data:
-    driver: local
+## 💻 Installation & Running Locally
+
+### 1. Clone the Repository
+```bash
+git clone <repository_url>
+cd FlyRank_Intern
 ```
 
-#### 2. Automatic Schema Creation (`init.sql`)
-Mounted to `/docker-entrypoint-initdb.d/init.sql` so PostgreSQL creates the table on container startup:
-```sql
-CREATE TABLE IF NOT EXISTS tasks (
-    id SERIAL PRIMARY KEY,
-    title TEXT NOT NULL,
-    done BOOLEAN DEFAULT FALSE
-);
+### 2. Create Virtual Environment & Install Dependencies
+```bash
+python -m venv venv
+# On Windows PowerShell:
+.\venv\Scripts\Activate.ps1
+# On Linux/macOS:
+source venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+### 3. Start Database (PostgreSQL via Docker)
+```bash
+docker compose up -d
+```
+
+### 4. Run FastAPI Development Server
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+Server starts at: `http://localhost:8000`
+
+---
+
+## 📡 API Endpoints Reference Table
+
+| Category | HTTP Verb | Path | Description | Required Auth | Success Code |
+|---|---|---|---|---|---|
+| **System** | `GET` | `/` | Root API metadata & endpoints | None | `200 OK` |
+| **System** | `GET` | `/health` | Server health check | None | `200 OK` |
+| **Auth** | `POST` | `/auth/signup` | Register new user account | None | `201 Created` |
+| **Auth** | `POST` | `/auth/login` | Authenticate user & get JWT tokens | None | `200 OK` |
+| **Auth** | `POST` | `/auth/logout` | Sign out current user session | Bearer JWT 🔒 | `204 No Content` |
+| **Public** | `GET` | `/public/info` | Public informational message | None | `200 OK` |
+| **Protected** | `GET` | `/protected/profile` | Authenticated user profile details | Bearer JWT 🔒 | `200 OK` |
+| **Protected** | `GET` | `/protected/dashboard` | Authenticated user dashboard view | Bearer JWT 🔒 | `200 OK` |
+| **Tasks** | `GET` | `/tasks` | List all tasks | None | `200 OK` |
+| **Tasks** | `GET` | `/tasks/{id}` | Get single task by ID | None | `200 OK` |
+| **Tasks** | `POST` | `/tasks` | Create a new task | None | `201 Created` |
+| **Tasks** | `PUT` | `/tasks/{id}` | Update existing task | None | `200 OK` |
+| **Tasks** | `DELETE` | `/tasks/{id}` | Delete task by ID | None | `204 No Content` |
+
+---
+
+## 🔒 How Authentication Works Under the Hood
+
+```mermaid
+sequenceDiagram
+    participant Client as Client / Postman / Swagger
+    participant FastAPI as FastAPI App
+    participant Dep as get_current_user Dependency
+    participant Supabase as Supabase Auth Service
+
+    Client->>FastAPI: Request to Protected Route (Header: Authorization: Bearer <JWT>)
+    FastAPI->>Dep: Invoke get_current_user()
+    alt Header Missing or Invalid Format
+        Dep-->>Client: 401 Unauthorized {"error": "Access token required"}
+    else Header Present
+        Dep->>Supabase: supabase.auth.get_user(token)
+        alt Token Valid & Active
+            Supabase-->>Dep: Returns User Object (id, email, created_at)
+            Dep-->>FastAPI: Returns User Dict
+            FastAPI-->>Client: 200 OK (Protected Data)
+        else Token Expired or Invalid Signature
+            Supabase-->>Dep: Throws Auth Error
+            Dep-->>Client: 401 Unauthorized {"error": "Invalid or expired token"}
+        end
+    end
 ```
 
 ---
 
-### 🧪 Data Persistence Verification Procedure
+## 📖 Swagger UI Authorization (`/docs`)
 
-1. **Start PostgreSQL Container**:
-   `docker compose up -d`
-2. **Create Task (`POST /tasks`)**:
-   `Invoke-RestMethod -Uri "http://localhost:8000/tasks" -Method Post -ContentType "application/json" -Body '{"title": "Verify Docker Volume Persistence"}'`
-3. **Verify Task Listed (`GET /tasks`)**:
-   `Invoke-RestMethod -Uri "http://localhost:8000/tasks" -Method Get`
-4. **Stop Container (`docker compose down`)**:
-   Container `task_postgres_db` is stopped and removed; `postgres_data` volume is preserved.
-5. **Restart Container (`docker compose up -d`)**:
-   Container starts and re-attaches `postgres_data` volume.
-6. **Verify Data Preserved (`GET /tasks`)**:
-   The task still exists in the PostgreSQL database.
+FastAPI automatically generates interactive API documentation at:
+`http://localhost:8000/docs`
+
+### How to Authenticate in Swagger UI:
+1. Execute `POST /auth/login` with your credentials and copy the `access_token`.
+2. Click the green **Authorize 🔓** button at the top right of the Swagger UI.
+3. Paste your `access_token` into the **Value** field.
+4. Click **Authorize** and then **Close**.
+5. All protected endpoints displaying the **Lock Icon 🔒** will now automatically pass your Bearer token!
 
 ---
 
-## 📄 License
+## 🔒 Security Notes & Best Practices
 
-Distributed under the MIT License. Built for FlyRank Backend Track.
-
+1. **Bearer Token Transmission**: Always transmit tokens via `Authorization: Bearer <token>` HTTP headers, never via URL query parameters.
+2. **Password Exposure**: Passwords are never returned in any response body or saved in plaintext.
+3. **Pydantic Validation**: Payload inputs are strictly sanitized to prevent empty string injections or missing field crashes.
