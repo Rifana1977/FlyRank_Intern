@@ -1,6 +1,9 @@
-from fastapi import Request, status
-from fastapi.responses import JSONResponse
+from fastapi import Request, status, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.supabase_client import supabase
+
+# FastAPI Security Scheme for Bearer Auth (triggers lock icon & Authorize button in Swagger /docs)
+security_scheme = HTTPBearer(auto_error=False)
 
 
 class AuthException(Exception):
@@ -10,14 +13,13 @@ class AuthException(Exception):
         self.error_message = error_message
 
 
-def get_current_user(request: Request) -> dict:
+def get_current_user(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
+) -> dict:
     """
     Reusable FastAPI dependency to authenticate requests via Supabase JWT.
-
-    1. Checks for Authorization header with 'Bearer <token>'
-    2. Verifies token with Supabase (supabase.auth.get_user)
-    3. Returns authenticated user payload
-    4. Raises AuthException on missing or invalid token
+    Uses HTTPBearer security scheme so Swagger UI displays lock icons and Authorize button.
     """
     auth_header = request.headers.get("Authorization")
 
@@ -59,3 +61,4 @@ def get_current_user(request: Request) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             error_message="Invalid or expired token"
         )
+
